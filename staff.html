@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FASTPLAY | Staff Portal</title>
+    
+    <!-- TAILWIND CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ICONS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --primary: #3b82f6; --bg-dark: #0f172a; --sidebar: #020617; }
+        body { background-color: var(--bg-dark); color: #e2e8f0; font-family: 'Outfit', sans-serif; }
+        .gaming-font { font-family: 'Teko', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+        .hide { display: none !important; }
+        
+        .input-box { background: #1e293b; border: 1px solid #334155; color: white; padding: 10px; border-radius: 8px; width: 100%; outline: none; transition: 0.3s; }
+        .input-box:focus { border-color: var(--primary); }
+
+        .sidebar { width: 260px; height: 100vh; position: fixed; left: 0; top: 0; background: var(--sidebar); border-right: 1px solid #1e293b; transition: 0.3s; z-index: 50; }
+        .content { margin-left: 260px; padding: 24px; transition: 0.3s; }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .content { margin-left: 0; }
+            .mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
+            .mobile-overlay.active { display: block; }
+        }
+
+        .nav-item { display: flex; items-center; gap: 12px; padding: 12px 20px; color: #94a3b8; cursor: pointer; transition: 0.2s; border-left: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { background: #1e293b; color: white; border-left-color: var(--primary); }
+        .nav-item.active i { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed top-5 right-5 z-[100] bg-slate-900 border-l-4 border-blue-500 text-white px-6 py-4 rounded shadow-2xl transition-all duration-300 translate-x-full opacity-0">Msg</div>
+
+    <!-- LOGIN -->
+    <div id="login-view" class="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-slate-900 p-8 rounded-2xl border border-slate-700 text-center shadow-2xl">
+            <h1 class="text-4xl font-bold text-blue-500 mb-2 gaming-font">STAFF ACCESS</h1>
+            <p class="text-slate-500 text-sm mb-6">Enter assigned credentials</p>
+            <input type="text" id="s-user" class="input-box mb-3" placeholder="Username">
+            <input type="password" id="s-pass" class="input-box mb-6" placeholder="Password">
+            <button onclick="performStaffLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">LOGIN SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="main-view" class="hide">
+        
+        <!-- Mobile Header -->
+        <div class="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+            <h1 class="gaming-font font-bold text-blue-500 text-xl">STAFF PANEL</h1>
+            <button onclick="toggleSidebar()" class="text-white"><i class="fa-solid fa-bars text-xl"></i></button>
+        </div>
+        <div id="mobile-overlay" class="mobile-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar flex flex-col">
+            <div class="p-6 border-b border-slate-800">
+                <h1 class="text-3xl gaming-font font-bold text-white italic">FAST<span class="text-blue-500">PLAY</span></h1>
+                <p class="text-xs text-slate-500 tracking-widest uppercase mt-1">Logged in as: <span id="staff-name" class="text-white font-bold">...</span></p>
+            </div>
+            <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
+                <div onclick="nav('dash')" id="nav-dash" class="nav-item active"><i class="fa-solid fa-chart-pie w-5"></i> Dashboard</div>
+                
+                <!-- Permissions Controlled Menu -->
+                <div onclick="nav('matches')" id="nav-matches" class="nav-item hide"><i class="fa-solid fa-gamepad w-5"></i> Tournaments</div>
+                <div onclick="nav('finance')" id="nav-finance" class="nav-item hide"><i class="fa-solid fa-wallet w-5"></i> Finance <span id="fin-badge" class="ml-auto bg-red-600 text-white text-[9px] px-2 rounded-full hide">!</span></div>
+                <div onclick="nav('users')" id="nav-users" class="nav-item hide"><i class="fa-solid fa-users w-5"></i> Users</div>
+                <div onclick="nav('live')" id="nav-live" class="nav-item hide"><i class="fa-brands fa-youtube w-5"></i> Live & Chat</div>
+                <div onclick="nav('support')" id="nav-support" class="nav-item hide"><i class="fa-solid fa-headset w-5"></i> Support</div>
+                <div onclick="nav('cms')" id="nav-cms" class="nav-item hide"><i class="fa-solid fa-layer-group w-5"></i> App Settings</div>
+            </nav>
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="logout()" class="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm font-bold w-full p-2 rounded hover:bg-red-900/10 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            
+            <!-- DASHBOARD -->
+            <section id="page-dash">
+                <h2 class="text-3xl font-bold mb-6 gaming-font text-white">Staff Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <p class="text-slate-400 text-xs uppercase font-bold">Total Users</p>
+                        <h3 class="text-3xl font-bold text-white mt-1" id="st-users">0</h3>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <p class="text-slate-400 text-xs uppercase font-bold">Active Matches</p>
+                        <h3 class="text-3xl font-bold text-blue-500 mt-1" id="st-matches">0</h3>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <p class="text-slate-400 text-xs uppercase font-bold">Pending Finance</p>
+                        <h3 class="text-3xl font-bold text-yellow-500 mt-1" id="st-fin">0</h3>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MATCHES -->
+            <section id="page-matches" class="hide">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold gaming-font">Tournaments</h2>
+                    <button onclick="document.getElementById('modal-create').classList.remove('hide')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Create Match
+                    </button>
+                </div>
+                <div id="matches-list" class="grid gap-4"></div>
+            </section>
+
+            <!-- FINANCE -->
+            <section id="page-finance" class="hide">
+                <h2 class="text-3xl font-bold mb-6 gaming-font">Finance Control</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl h-[600px] flex flex-col">
+                        <div class="p-4 bg-slate-950 border-b border-slate-800 font-bold text-green-500">DEPOSITS</div>
+                        <div id="list-dep" class="p-4 space-y-3 overflow-y-auto flex-1"></div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl h-[600px] flex flex-col">
+                        <div class="p-4 bg-slate-950 border-b border-slate-800 font-bold text-red-500">WITHDRAWALS</div>
+                        <div id="list-wd" class="p-4 space-y-3 overflow-y-auto flex-1"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- USERS -->
+            <section id="page-users" class="hide">
+                <h2 class="text-3xl font-bold mb-6 gaming-font">User Database</h2>
+                <input type="text" id="search-user" onkeyup="filterUsers()" placeholder="Search username..." class="input-box mb-4 max-w-md">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-950 text-slate-400">
+                            <tr><th class="p-4">User</th><th class="p-4">Email</th><th class="p-4">Wallet</th><th class="p-4 text-right">Action</th></tr>
+                        </thead>
+                        <tbody id="users-table" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- LIVE -->
+            <section id="page-live" class="hide">
+                <h2 class="text-3xl font-bold mb-6 gaming-font">Live Control</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-6">
+                            <h3 class="font-bold mb-4 text-red-500">YouTube Stream</h3>
+                            <input type="text" id="cms-yt" class="input-box mb-3" placeholder="Video ID">
+                            <button onclick="saveLiveID()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold">UPDATE</button>
+                        </div>
+                        <button onclick="clearChat()" class="w-full bg-red-900/30 text-red-500 border border-red-900 py-2 rounded-lg font-bold">CLEAR CHAT</button>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[60vh]">
+                        <div class="p-3 bg-slate-950 border-b border-slate-800 font-bold">Chat Monitor</div>
+                        <div id="staff-live-chat" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SUPPORT -->
+            <section id="page-support" class="hide">
+                <h2 class="text-3xl font-bold mb-6 gaming-font">Support Tickets</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-[70vh]">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-y-auto">
+                        <div class="p-3 bg-slate-950 font-bold text-slate-400">Users</div>
+                        <div id="support-users"></div>
+                    </div>
+                    <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col relative">
+                        <div id="chat-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-600">Select User</div>
+                        <div id="active-chat-area" class="flex flex-col h-full hide">
+                            <div class="p-3 bg-slate-950 border-b border-slate-800 font-bold text-blue-500" id="chat-header">User</div>
+                            <div id="staff-chat-box" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+                            <div class="p-3 border-t border-slate-800 flex gap-2">
+                                <input id="staff-chat-input" class="input-box" placeholder="Reply...">
+                                <button onclick="sendStaffReply()" class="bg-blue-600 text-white px-4 rounded-lg"><i class="fa-solid fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CMS -->
+            <section id="page-cms" class="hide">
+                <h2 class="text-3xl font-bold mb-6 gaming-font">Settings</h2>
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-6">
+                    <h3 class="font-bold mb-4 text-green-500">QR Code</h3>
+                    <input type="file" id="cms-qr" class="text-sm text-slate-400 mb-4 w-full bg-slate-950 p-2 rounded border border-slate-800">
+                    <button onclick="processUpload('admin/qrCode', 'cms-qr')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-full">UPLOAD</button>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                    <h3 class="font-bold mb-4 text-blue-500">Banners</h3>
+                    <div class="flex gap-4 mb-4">
+                        <input type="file" id="cms-banner" class="text-sm text-slate-400 w-full bg-slate-950 p-2 rounded border border-slate-800">
+                        <button onclick="uploadBanner()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">ADD</button>
+                    </div>
+                    <div id="banner-list" class="flex gap-4 overflow-x-auto pb-4"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODALS (Reused) -->
+    <div id="modal-create" class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center hide p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold gaming-font mb-6 text-white">Create Match</h3>
+            <input type="file" id="m-banner-file" class="text-sm text-slate-400 mb-4 w-full bg-slate-950 p-2 rounded border border-slate-800">
+            <div class="grid grid-cols-2 gap-4 mb-4"><input type="text" id="m-title" class="input-box" placeholder="Title"><input type="datetime-local" id="m-date" class="input-box"></div>
+            <div class="grid grid-cols-3 gap-4 mb-4"><input type="text" id="m-game" class="input-box" placeholder="Game"><select id="m-mode" class="input-box"><option>SOLO</option><option>DUO</option><option>SQUAD</option></select><input type="number" id="m-slots" class="input-box" placeholder="Slots"></div>
+            <input type="number" id="m-fee" class="input-box mb-4" placeholder="Fee">
+            <textarea id="m-prize" class="input-box h-24 mb-4" placeholder="Prize"></textarea><textarea id="m-rules" class="input-box h-24 mb-6" placeholder="Rules"></textarea>
+            <div class="flex justify-end gap-3"><button onclick="document.getElementById('modal-create').classList.add('hide')" class="px-6 py-3 rounded-xl text-slate-400">Cancel</button><button onclick="submitTournament()" class="bg-green-600 text-white px-8 py-3 rounded-xl font-bold">PUBLISH</button></div>
+        </div>
+    </div>
+
+    <div id="modal-result" class="fixed inset-0 z-50 bg-black/95 flex items-center justify-center hide p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl p-6 h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-2xl font-bold gaming-font text-blue-500">Results</h3><button onclick="document.getElementById('modal-result').classList.add('hide')" class="text-slate-400">X</button></div>
+            <div class="bg-slate-950 rounded-xl flex-1 overflow-y-auto p-4 space-y-2" id="result-players-list"></div>
+            <button onclick="submitResults()" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl mt-4">DISTRIBUTE & CLOSE</button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // ⭐ CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyArM0Z3PP5rIXEKls59uLmPDb5eTvVwR-o",
+            authDomain: "fastplay-5bba5.firebaseapp.com",
+            databaseURL: "https://fastplay-5bba5-default-rtdb.firebaseio.com",
+            projectId: "fastplay-5bba5",
+            storageBucket: "fastplay-5bba5.firebasestorage.app",
+            messagingSenderId: "440804634154",
+            appId: "1:440804634154:web:25c0bfd4f6d5596831dd53"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        
+        let staffUser = null;
+        let staffPerms = {};
+        let activeChatUser = null;
+        let currentMatchId = null;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.classList.remove('translate-x-full','opacity-0');
+            setTimeout(()=>t.classList.add('translate-x-full','opacity-0'),3000);
+        }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+
+        // --- GLOBAL LOGIN FUNCTION (SESSION BASED) ---
+        window.performStaffLogin = function() {
+            const u = document.getElementById('s-user').value.trim();
+            const p = document.getElementById('s-pass').value.trim();
+            
+            if(!u || !p) return alert("Please fill all fields");
+            showToast("Verifying with Database...");
+
+            // 1. Check DB first
+            db.ref('staff_accounts').orderByChild('username').equalTo(u).once('value', snap => {
+                if(!snap.exists()) return alert("Staff username not found.");
+
+                let matched = false;
+                snap.forEach(c => {
+                    const d = c.val();
+                    if(d.password === p) {
+                        matched = true;
+                        staffUser = d.username;
+                        staffPerms = d.permissions || {};
+                        
+                        // 2. Create FRESH Session (Bypasses invalid-login error)
+                        // We use a timestamp so the email is ALWAYS unique and new
+                        const sessionEmail = `staff_session_${Date.now()}@fastplay.local`;
+                        const sessionPass = "temp_session_123";
+
+                        auth.createUserWithEmailAndPassword(sessionEmail, sessionPass)
+                        .then(() => {
+                            // Success!
+                            loadStaffUI();
+                        })
+                        .catch(err => {
+                            // Backup: If Create fails (rare), try Anon
+                            auth.signInAnonymously().then(() => loadStaffUI()).catch(e => alert("Auth Error: " + e.message));
+                        });
+                    }
+                });
+
+                if(!matched) alert("Incorrect Password");
+            });
+        };
+
+        function loadStaffUI() {
+            document.getElementById('login-view').classList.add('hide');
+            document.getElementById('main-view').classList.remove('hide');
+            document.getElementById('staff-name').innerText = staffUser;
+            applyPermissions();
+            initData();
+            showToast("Staff Authenticated!");
+        }
+
+        window.logout = function() { auth.signOut(); location.reload(); }
+
+        // --- PERMISSIONS ---
+        function applyPermissions() {
+            if(staffPerms.matches) document.getElementById('nav-matches').classList.remove('hide');
+            if(staffPerms.finance) document.getElementById('nav-finance').classList.remove('hide');
+            if(staffPerms.users) document.getElementById('nav-users').classList.remove('hide');
+            if(staffPerms.live) document.getElementById('nav-live').classList.remove('hide');
+            if(staffPerms.support) document.getElementById('nav-support').classList.remove('hide');
+            if(staffPerms.cms) document.getElementById('nav-cms').classList.remove('hide');
+            nav('dash');
+        }
+
+        window.nav = function(p) {
+            document.querySelectorAll('section').forEach(el => el.classList.add('hide'));
+            const target = document.getElementById('page-'+p);
+            if(target) target.classList.remove('hide');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const btn = document.getElementById('nav-'+p);
+            if(btn) btn.classList.add('active');
+            if(window.innerWidth < 768) toggleSidebar();
+        }
+
+        function initData() {
+            db.ref('users').on('value', s => document.getElementById('st-users').innerText = s.numChildren());
+            if(staffPerms.matches) {
+                db.ref('tournaments').on('value', s => {
+                    document.getElementById('st-matches').innerText = s.numChildren();
+                    renderMatches(s);
+                });
+            }
+            if(staffPerms.finance) {
+                db.ref('payments/deposits').on('value', s => {
+                    let cnt=0; s.forEach(c => { if(c.val().status==='pending') cnt++; });
+                    document.getElementById('st-fin').innerText = cnt;
+                    if(cnt>0) document.getElementById('fin-badge').classList.remove('hide');
+                    renderDeposits(s);
+                });
+                db.ref('payments/withdrawals').on('value', renderWithdrawals);
+            }
+            if(staffPerms.users) db.ref('users').on('value', renderUsers);
+            if(staffPerms.live) initLiveChat();
+            if(staffPerms.support) initSupport();
+            if(staffPerms.cms) initCMS();
+        }
+
+        // --- DATA RENDERERS ---
+        function renderMatches(snap) {
+            const list = document.getElementById('matches-list'); list.innerHTML = '';
+            snap.forEach(c => {
+                const m = c.val();
+                const k = c.key;
+                const joined = m.participants ? Object.keys(m.participants).length : 0;
+                list.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center">
+                        <img src="${m.banner}" class="w-full md:w-32 h-20 object-cover rounded">
+                        <div class="flex-1 w-full">
+                            <div class="flex justify-between items-center"><h3 class="font-bold text-white">${m.title}</h3><span class="text-xs text-blue-400 bg-slate-950 px-2 py-1 rounded border border-blue-900">${m.status}</span></div>
+                            <div class="text-xs text-slate-500 mt-1">${m.game} • ${joined}/${m.totalSlots}</div>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="setStatus('${k}')" class="text-xs bg-blue-600 px-2 py-1 rounded text-white">Status</button>
+                                <button onclick="setRoom('${k}')" class="text-xs bg-green-600 px-2 py-1 rounded text-white">Room</button>
+                                <button onclick="openResultManager('${k}')" class="text-xs bg-amber-500 px-2 py-1 rounded text-black font-bold">Results</button>
+                                <button onclick="delMatch('${k}')" class="text-xs bg-red-600 px-2 py-1 rounded text-white">Del</button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        window.submitTournament = async function() {
+            const f = document.getElementById('m-banner-file').files[0];
+            if(!f) return alert("Banner missing");
+            const b64 = await compressImage(f);
+            db.ref('tournaments').push({
+                title: document.getElementById('m-title').value, game: document.getElementById('m-game').value, mode: document.getElementById('m-mode').value,
+                totalSlots: parseInt(document.getElementById('m-slots').value), entryFee: parseInt(document.getElementById('m-fee').value),
+                date: document.getElementById('m-date').value, prizeTable: document.getElementById('m-prize').value, rules: document.getElementById('m-rules').value,
+                banner: b64, status: 'Upcoming', createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            document.getElementById('modal-create').classList.add('hide');
+        };
+
+        window.openResultManager = (matchId) => {
+            currentMatchId = matchId;
+            document.getElementById('modal-result').classList.remove('hide');
+            db.ref(`tournaments/${matchId}/participants`).once('value', snap => {
+                const list = document.getElementById('result-players-list'); list.innerHTML = '';
+                if(!snap.exists()) { list.innerHTML='No Players'; return; }
+                snap.forEach(p => {
+                    list.innerHTML += `<div class="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800 mb-2"><div><p class="text-sm font-bold text-white">${p.val().gameName}</p></div><input type="number" class="w-24 bg-slate-950 border border-slate-700 text-white p-2 rounded text-sm result-input" placeholder="Win ₹" data-uid="${p.key}"></div>`;
+                });
+            });
+        };
+
+        window.submitResults = () => {
+            if(!confirm("Close Match?")) return;
+            document.querySelectorAll('.result-input').forEach(inp => {
+                const amount = parseInt(inp.value);
+                if(amount > 0) {
+                    const uid = inp.getAttribute('data-uid');
+                    db.ref(`users/${uid}`).transaction(u => { if(u) { u.wallet=(u.wallet||0)+amount; u.winnings=(u.winnings||0)+amount; } return u; });
+                }
+            });
+            db.ref(`tournaments/${currentMatchId}`).update({ status: 'Completed' });
+            document.getElementById('modal-result').classList.add('hide');
+        };
+
+        window.setStatus = (k) => { const s=prompt("Status:"); if(s) db.ref('tournaments/'+k).update({status:s}); };
+        window.setRoom = (k) => { const i=prompt("ID"), p=prompt("Pass"); if(i) db.ref('tournaments/'+k).update({roomID:i, roomPass:p}); };
+        window.delMatch = (k) => { if(confirm("Delete?")) db.ref('tournaments/'+k).remove(); };
+
+        function renderDeposits(snap) {
+            const list = document.getElementById('list-dep'); list.innerHTML = '';
+            let cnt=0;
+            snap.forEach(c => {
+                const d = c.val();
+                if(d.status==='pending') {
+                    cnt++;
+                    list.innerHTML += `<div class="bg-slate-950 p-2 rounded flex justify-between items-center border border-slate-800 text-sm"><div>₹${d.amount} - ${d.username}</div><div><button onclick="appDep('${c.key}','${d.uid}',${d.amount})" class="text-green-500 mr-2">✓</button><button onclick="rejTx('deposits','${c.key}')" class="text-red-500">✕</button></div></div>`;
+                }
+            });
+            document.getElementById('st-fin').innerText = cnt;
+            if(cnt>0) document.getElementById('fin-badge').classList.remove('hide');
+        }
+        function renderWithdrawals(snap) {
+            const list = document.getElementById('list-wd'); list.innerHTML = '';
+            snap.forEach(c => {
+                const w = c.val();
+                if(w.status==='pending') {
+                    list.innerHTML += `<div class="bg-slate-950 p-2 rounded flex justify-between items-center border border-slate-800 text-sm"><div>₹${w.amount} - ${w.uid.substring(0,5)}</div><div><button onclick="appWd('${c.key}')" class="text-green-500 mr-2">Paid</button><button onclick="rejWd('${c.key}','${w.uid}',${w.amount})" class="text-red-500">Refund</button></div></div>`;
+                }
+            });
+        }
+
+        window.appDep = (k,uid,a) => {
+            db.ref('payments/deposits/'+k).update({status:'approved'});
+            db.ref('users/'+uid+'/wallet').transaction(v => (v||0)+a);
+        };
+        window.rejTx = (t,k) => db.ref(`payments/${t}/${k}`).update({status:'rejected'});
+        window.appWd = (k) => db.ref('payments/withdrawals/'+k).update({status:'approved'});
+        window.rejWd = (k,uid,a) => {
+            db.ref('payments/withdrawals/'+k).update({status:'rejected'});
+            db.ref('users/'+uid).transaction(u => { if(u){u.wallet+=a; u.winnings+=a;} return u; });
+        };
+
+        function renderUsers(snap) {
+            const tb = document.getElementById('users-table'); tb.innerHTML = '';
+            snap.forEach(c => {
+                const u = c.val();
+                tb.innerHTML += `<tr class="border-b border-slate-800"><td class="p-4 text-white">${u.username}</td><td class="p-4 text-xs text-slate-500">${u.email}</td><td class="p-4 text-green-400">₹${u.wallet}</td><td class="p-4 text-right"><button onclick="editUser('${c.key}', ${u.wallet})" class="text-blue-500"><i class="fa-solid fa-pen"></i></button></td></tr>`;
+            });
+        }
+        window.editUser = (uid, old) => { const n = prompt("Balance:", old); if(n) db.ref('users/'+uid).update({wallet: parseInt(n)}); };
+        window.filterUsers = () => { const q=document.getElementById('search-user').value.toLowerCase(); document.querySelectorAll('#users-table tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'); };
+
+        function initCMS() {
+            db.ref('banners').on('value', s => {
+                const d = document.getElementById('banner-list'); d.innerHTML = '';
+                s.forEach(c => { d.innerHTML += `<div class="relative group flex-shrink-0"><img src="${c.val().url}" class="w-24 h-14 rounded"><button onclick="db.ref('banners/${c.key}').remove()" class="absolute top-0 right-0 text-red-500">x</button></div>`; });
+            });
+        }
+        window.uploadBanner = async () => { const f=document.getElementById('cms-banner').files[0]; if(f) { const b=await compressImage(f); db.ref('banners').push({url:b}); } };
+        window.processUpload = async (path, id) => { const f=document.getElementById(id).files[0]; if(f) { const b=await compressImage(f); db.ref(path).set(b); } };
+        window.saveLiveID = () => db.ref('live/youtubeId').set(document.getElementById('cms-yt').value);
+
+        function initLiveChat() {
+            db.ref('live/chat').limitToLast(30).on('value', s => {
+                const b = document.getElementById('staff-live-chat'); b.innerHTML = '';
+                s.forEach(c => b.innerHTML += `<div class="flex justify-between text-xs bg-slate-950 p-2 mb-1"><span class="text-slate-300">${c.val().user}: ${c.val().text}</span><button onclick="db.ref('live/chat/${c.key}').remove()" class="text-red-500">Del</button></div>`);
+            });
+        }
+        window.clearChat = () => db.ref('live/chat').remove();
+
+        function initSupport() {
+            db.ref('support').on('value', s => {
+                const l = document.getElementById('support-users'); l.innerHTML = '';
+                s.forEach(c => l.innerHTML += `<div onclick="loadChat('${c.key}')" class="p-2 cursor-pointer hover:bg-slate-800 text-xs text-slate-300 border-b border-slate-800">${c.key.substring(0,8)}...</div>`);
+            });
+        }
+        window.loadChat = (uid) => {
+            activeChatUser = uid;
+            document.getElementById('chat-placeholder').classList.add('hide');
+            document.getElementById('active-chat-area').classList.remove('hide');
+            document.getElementById('chat-header').innerText = uid;
+            db.ref('support/'+uid).on('value', s => {
+                const b = document.getElementById('staff-chat-box'); b.innerHTML = '';
+                s.forEach(c => {
+                    const m = c.val();
+                    const align = m.sender==='admin'?'text-right':'text-left';
+                    const bg = m.sender==='admin'?'bg-blue-600':'bg-slate-700';
+                    b.innerHTML += `<div class="${align}"><span class="${bg} px-2 py-1 rounded text-xs inline-block mb-1">${m.text}</span></div>`;
+                });
+                b.scrollTop = b.scrollHeight;
+            });
+        };
+        window.sendStaffReply = () => {
+            const i = document.getElementById('staff-chat-input');
+            if(activeChatUser && i.value) { db.ref('support/'+activeChatUser).push({sender:'admin', text:i.value, ts: firebase.database.ServerValue.TIMESTAMP}); i.value=''; }
+        };
+
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader(); reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image(); img.src = e.target.result;
+                    img.onload = () => {
+                        const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+                        const s = 500/img.width; c.width=500; c.height=img.height*s;
+                        ctx.drawImage(img,0,0,c.width,c.height); resolve(c.toDataURL('image/jpeg', 0.6));
+                    };
+                };
+            });
+        };
+    </script>
+</body>
+</html>
